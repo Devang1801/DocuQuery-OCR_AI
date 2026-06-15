@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Graph OCR</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="glass-header">
+            <div class="header-inner">
+                <div class="header-icon"><i class="fa-solid fa-network-wired"></i></div>
+                <div>
+                    <h1>Graph OCR AI</h1>
+                    <p>Powered by Grok &amp; LlamaIndex</p>
+                </div>
+            </div>
+        </header>
+
+        <main class="content-grid">
+            <!-- Upload Section -->
+            <section class="glass-card upload-section">
+                <h2><i class="fa-solid fa-cloud-arrow-up"></i> Upload Document</h2>
+                <div class="drop-zone" id="dropZone">
+                    <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
+                    <p>Drag &amp; Drop your document or <strong>Click to Browse</strong></p>
+                    <span class="file-types">PNG · JPG · PDF · DOCX · XLSX</span>
+                    <input type="file" id="fileInput" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" hidden>
+                </div>
+                <div id="imagePreview" class="image-preview hidden">
+                    <div id="fileIconPreview" class="file-icon-preview hidden"></div>
+                    <img id="previewImg" src="" alt="Preview" class="hidden">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 1rem;">
+                        <p id="fileNameDisplay" style="margin:0;"></p>
+                        <button id="resetFileBtn" class="btn icon-btn" title="Remove File" style="padding: 0.3rem 0.5rem;"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <button id="processBtn" class="btn primary-btn">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Process Document
+                    </button>
+                </div>
+
+                <!-- Query Section -->
+                <div class="query-section" id="querySection" style="display:none;">
+                    <h3><i class="fa-solid fa-magnifying-glass"></i> Query Graph</h3>
+                    <div class="query-input-row">
+                        <input type="text" id="queryInput" placeholder="Ask anything about the document..." />
+                        <button id="queryBtn" class="btn accent-btn"><i class="fa-solid fa-paper-plane"></i></button>
+                    </div>
+                    <div id="queryResult" class="query-result hidden"></div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="glass-card results-section">
+                <h2><i class="fa-solid fa-chart-network"></i> Analysis</h2>
+
+                <div class="tabs">
+                    <button class="tab-btn active" data-target="text-result">
+                        <i class="fa-solid fa-file-lines"></i> Text
+                    </button>
+                    <button class="tab-btn" data-target="graph-result">
+                        <i class="fa-solid fa-comments"></i> Q&A
+                    </button>
+                    <button class="tab-btn" data-target="compare-result">
+                        <i class="fa-solid fa-code-compare"></i> Compare
+                    </button>
+                </div>
+
+                <div class="tab-content active" id="text-result">
+                    <div class="text-container" style="display: flex; flex-direction: column; height: 100%;">
+                        <div class="chat-header" style="padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center;">
+                            <h3 style="margin:0; font-size: 1rem; color: var(--accent);"><i class="fa-solid fa-pen-to-square"></i> Extracted OCR Text</h3>
+                            <span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal; margin-left:auto;">Review and fix any OCR typos below.</span>
+                        </div>
+                        <div style="flex: 1; display: flex; flex-direction: column; position: relative; min-height: 500px;">
+                            <div id="textPlaceholder" class="placeholder-text">
+                                <i class="fa-solid fa-file-signature"></i>
+                                <p>Raw text will appear here.</p>
+                            </div>
+                            <textarea id="extractedText" class="hidden" placeholder="Extracted text..." style="width:100%; height:100%; flex: 1; background:transparent; border:none; color:var(--text); font-family:'Space Mono', monospace; font-size:0.85rem; resize:none; outline:none;"></textarea>
+                        </div>
+                        <div style="display:flex; justify-content:flex-end; padding-top:0.5rem;">
+                            <button id="saveTextBtn" class="btn accent-btn hidden"><i class="fa-solid fa-save"></i> Save Changes</button>
+                            <span id="saveStatus" style="color:var(--success); font-size:0.8rem; margin-left:1rem; align-self:center; opacity:0; transition:opacity 0.3s;">Saved!</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="graph-result">
+                    <div class="chat-container">
+                        <div class="chat-header" style="padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center;">
+                            <h3 style="margin:0; font-size: 1rem; color: var(--accent);"><i class="fa-solid fa-comments"></i> Document Q&A</h3>
+                            <span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal; margin-left:auto;">Ask questions about your uploaded document</span>
+                        </div>
+                        <div class="chat-messages" id="chatMessages" style="height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1rem; padding-right: 0.5rem;">
+                            <div class="chat-message system" style="display: flex; gap: 0.75rem;">
+                                <div class="msg-avatar" style="color: var(--accent); font-size: 1.5rem;"><i class="fa-solid fa-robot"></i></div>
+                                <div class="msg-bubble" style="background: rgba(56,189,248,0.1); padding: 0.75rem 1rem; border-radius: 0.5rem; border: 1px solid rgba(56,189,248,0.2); font-size: 0.85rem;">Hello! I've analyzed your document. What would you like to know about it?</div>
+                            </div>
+                        </div>
+                        <div class="chat-input-area" style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="chatInput" placeholder="Ask a question... (e.g. 'What is their main skill?')" style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.75rem 1rem; color: var(--text); outline: none;">
+                            <button id="sendChatBtn" class="btn primary-btn" style="width: auto; padding: 0.6rem 1.2rem;">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="compare-result">
+                    <div class="accordion-container">
+                        <!-- Source Text Accordion -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" id="accHeaderSource">
+                                <span class="acc-title"><i class="fa-solid fa-file-lines"></i> Source Text (Extracted)</span>
+                                <i class="fa-solid fa-chevron-down acc-icon"></i>
+                            </button>
+                            <div class="accordion-body" id="accBodySource">
+                                <div id="compareExtractedText" class="compare-text-box">
+                                    <p style="color:var(--text-muted); font-size: 0.8rem;">Upload a document to extract text.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Target Text Accordion -->
+                        <div class="accordion-item active">
+                            <button class="accordion-header" id="accHeaderTarget">
+                                <span class="acc-title"><i class="fa-solid fa-bullseye"></i> Target Text</span>
+                                <i class="fa-solid fa-chevron-down acc-icon"></i>
+                            </button>
+                            <div class="accordion-body" id="accBodyTarget" style="display:block;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                    <p class="helper-text" style="margin:0;">Paste text (e.g. Job Description)</p>
+                                    <select id="compareStrategy" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text); border-radius: 0.3rem; padding: 0.2rem 0.5rem; font-size: 0.75rem; outline: none;">
+                                        <option value="word">Exact Words</option>
+                                        <option value="paragraph">Paragraph Coverage</option>
+                                        <option value="context">AI Semantic Context</option>
+                                    </select>
+                                </div>
+                                <textarea id="compareTextInput" rows="8" placeholder="Paste text here..."></textarea>
+                                <button id="compareBtn" class="btn primary-btn" style="margin-top: 1rem;">
+                                    <i class="fa-solid fa-code-compare"></i> Analyze Similarity
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Analysis Results Accordion -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" id="accHeaderResults">
+                                <span class="acc-title"><i class="fa-solid fa-chart-pie"></i> Analysis Results</span>
+                                <i class="fa-solid fa-chevron-down acc-icon"></i>
+                            </button>
+                            <div class="accordion-body" id="accBodyResults">
+                                <div id="compareResults" class="hidden">
+                                    <div class="similarity-score">
+                                        <div class="score-ring">
+                                            <svg viewBox="0 0 120 120">
+                                                <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="10"/>
+                                                <circle id="scoreArc" cx="60" cy="60" r="50" fill="none" stroke="#10b981" stroke-width="10"
+                                                    stroke-dasharray="314" stroke-dashoffset="314"
+                                                    stroke-linecap="round" transform="rotate(-90 60 60)"/>
+                                            </svg>
+                                            <div class="score-label">
+                                                <span id="simScoreValue">0</span>
+                                                <small>%</small>
+                                            </div>
+                                        </div>
+                                        <div class="score-meta">
+                                            <h3>Similarity Score</h3>
+                                            <p id="scoreSubtext"></p>
+                                        </div>
+                                    </div>
+                                    <div class="keywords-container" style="display: flex; gap: 1rem; width: 100%;">
+                                        <div class="matching-keywords" style="flex: 1;">
+                                            <h4><i class="fa-solid fa-check" style="color:var(--success)"></i> Matching Keywords</h4>
+                                            <div id="keywordsList" class="keywords-list"></div>
+                                        </div>
+                                        <div class="missing-keywords" style="flex: 1;">
+                                            <h4><i class="fa-solid fa-xmark" style="color:var(--danger)"></i> Missing Keywords</h4>
+                                            <div id="missingKeywordsList" class="keywords-list missing-list"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="compareResultsPlaceholder" class="placeholder-text" style="height: 100%; min-height: 150px;">
+                                    <i class="fa-solid fa-chart-pie"></i>
+                                    <p>Click Analyze to see results.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading Overlay -->
+                <div class="loading-overlay hidden" id="loadingOverlay">
+                    <div class="loader-ring"></div>
+                    <p id="loadingText">Processing with Grok AI...</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
