@@ -94,6 +94,4 @@ python run.py
 
 The frontend will be available at `http://localhost:4000` and the backend at `http://127.0.0.1:8000`.
 
-## License
 
-MIT
